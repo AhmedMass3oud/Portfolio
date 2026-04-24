@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm install *)",
+      "Bash(curl -s http://localhost:49691)",
+      "WebFetch(domain:higgsfield.ai)",
+      "Bash(curl -sL \"https://higgsfield.ai/s/sDO16qg050U\")",
+      "Bash(curl -sL \"https://higgsfield.ai/s/CekWzix91BY\")",
+      "Bash(curl -sL \"https://higgsfield.ai/s/CZXZczUMbDY\")",
+      "Bash(curl -sL \"https://higgsfield.ai/s/sMj3FJS3xNE\")",
+      "Bash(curl -sL \"https://higgsfield.ai/s/aws8qECk9bQ\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(npx tsc *)",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/about to hero.mp4\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/about-to-hero.mp4)",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/hero to about.mp4\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/hero-to-about.mp4)",
+      "Bash(cp \"/Users/ahmedmassoud/Desktop/Tremoloo.svg\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/tremoloo.svg)",
+      "Bash(cp \"/Users/ahmedmassoud/Desktop/Tawuniya-Logo.svg\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/tawuniya.svg)",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/Hero.mp4\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/hero.mp4)",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/hero to about final.mp4\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/hero-to-about.mp4)",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/about to hero final.mp4\" /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/public/about-to-hero.mp4)",
+      "Bash(xxd /Users/ahmedmassoud/Downloads/ethereal-journey-portfolio/src/constants.ts)",
+      "Bash(npm run *)",
+      "WebFetch(domain:78645a93-6284-43b2-9ce4-5b697d42fc23.claudeusercontent.com)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git init *)"
+    ]
+  }
+}

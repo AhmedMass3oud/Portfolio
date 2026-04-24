@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Extralight.otf") format("opentype");
+  font-weight: 200;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Light.otf") format("opentype");
+  font-weight: 300;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Regular.otf") format("opentype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Medium.otf") format("opentype");
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Semibold.otf") format("opentype");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/ClashDisplay-Bold.otf") format("opentype");
+  font-weight: 700;
+}
+
+@theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Clash Display", sans-serif;
+  --font-serif: "Instrument Serif", serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-bg: #ffffff;
+  --color-accent: #000000;
+  --color-muted: #374151;
+  --color-brand: #FF4E00;
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .text-fluid-display {
+    font-size: clamp(2.5rem, 9vw, 9rem);
+    line-height: 0.88;
+    letter-spacing: -0.01em;
+  }
+  .text-fluid-section-title {
+    font-size: clamp(1.75rem, 4.5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .text-fluid-subtitle {
+    font-size: clamp(1rem, 3vw, 2.5rem);
+    font-weight: 500;
+  }
+}
+
+:root {
+  background-color: var(--color-bg);
+  color: var(--color-accent);
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background-color: #ffffff;
+}
+
+/* ─── Section layout containment — isolates paint/layout per section ── */
+section {
+  contain: layout style;
+}
+
+/* ─── Generic fade-up animation ─────────────────────────────────── */
+.anim-fade {
+  opacity: 0;
+  transform: translateY(14px) translateZ(0);
+  transition: opacity 0.65s ease,
+              transform 0.65s cubic-bezier(0.33, 1, 0.68, 1);
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+}
+.anim-fade.visible {
+  opacity: 1;
+  transform: translateY(0) translateZ(0);
+}
+
+/* ─── Nav pill transition (pure CSS, no JS) ─────────────────────── */
+.nav-pill-item {
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+/* ─── Infinite ticker scroll ────────────────────────────────────── */
+@keyframes ticker-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes ticker-right {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+.ticker-left  { animation: ticker-left  28s linear infinite; will-change: transform; }
+.ticker-right { animation: ticker-right 32s linear infinite; will-change: transform; }
+
+/* ─── Grain texture — small, fast, GPU-only ─────────────────────── */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 9999;
+  animation: grain 12s steps(6) infinite;
+  will-change: transform;
+  mix-blend-mode: overlay;
+}
+
+@keyframes grain {
+  0%   { transform: translate3d(0, 0, 0); }
+  20%  { transform: translate3d(-3%, -4%, 0); }
+  40%  { transform: translate3d(3%,  3%, 0); }
+  60%  { transform: translate3d(-2%, 4%, 0); }
+  80%  { transform: translate3d(4%, -2%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* ─── Selection ─────────────────────────────────────────────────── */
+::selection { background: var(--color-brand); color: #ffffff; }
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f3f4f6; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
