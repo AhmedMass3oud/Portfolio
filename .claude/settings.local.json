@@ -24,7 +24,11 @@
       "WebFetch(domain:78645a93-6284-43b2-9ce4-5b697d42fc23.claudeusercontent.com)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(git checkout *)",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/about to hero final.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/about-to-hero.mp4\")",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/hero to about final.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/hero-to-about.mp4\")",
+      "Bash(cp \"/Users/ahmedmassoud/Documents/Hero.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/hero.mp4\")"
     ]
   }
 }

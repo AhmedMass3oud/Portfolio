@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { SECTIONS } from './constants';
 import { AboutVideoBackground } from './components/AboutTransition';
 
@@ -57,23 +57,46 @@ function useInView(
 /* ─── Video panel ──────────────────────────────────────────────────── */
 const SectionVideo = React.memo<{ src: string; isActive: boolean }>(({ src, isActive }) => {
   const ref = useRef<HTMLVideoElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Perfect seamless loop — seek manually 0.15s before end instead of relying
+  // on the browser's native loop which has a small compositor gap in Chromium.
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const onTimeUpdate = () => {
+      if (v.duration && v.currentTime >= v.duration - 0.15) {
+        v.currentTime = 0;
+      }
+    };
+    v.addEventListener('timeupdate', onTimeUpdate);
+    return () => v.removeEventListener('timeupdate', onTimeUpdate);
+  }, []);
+
   useLayoutEffect(() => {
     const v = ref.current;
     if (!v) return;
-    if (isActive) v.play().catch(() => {});
-    else { v.pause(); v.currentTime = 0; }
+    if (isActive) {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    } else {
+      v.pause();
+      timerRef.current = setTimeout(() => { if (v) v.currentTime = 0; }, 80);
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [isActive]);
+
   return (
     <video
       ref={ref}
       src={src}
-      loop muted playsInline preload="auto"
+      muted playsInline preload="auto"
       style={{
         position: 'absolute', inset: 0, width: '100%', height: '100%',
         objectFit: 'cover', objectPosition: 'center',
         opacity: isActive ? 1 : 0,
-        // Fade IN smoothly; cut OUT instantly so no white gap between videos
-        transition: isActive ? 'opacity 0.18s ease' : 'opacity 0s',
+        transition: isActive ? 'opacity 0.18s ease' : 'opacity 0.08s ease',
         willChange: 'opacity',
         transform: 'translateZ(0)',
       }}
@@ -85,7 +108,7 @@ const LeftVideoPanel = React.memo<{
   activeSection: string;
   scrollDirRef: React.MutableRefObject<'down' | 'up'>;
 }>(({ activeSection, scrollDirRef }) => (
-  <div className="fixed inset-0 z-0 overflow-hidden bg-white" aria-hidden="true">
+  <div className="fixed inset-0 z-0 overflow-hidden bg-black" aria-hidden="true">
     {Object.entries(SECTION_VIDEOS).map(([id, src]) => (
       <SectionVideo key={id} src={src} isActive={activeSection === id} />
     ))}
@@ -202,13 +225,13 @@ const HeroContent: React.FC<{ section: SectionData }> = ({ section }) => {
               fontWeight: 500, fontSize: '16px', lineHeight: '1em',
               display: 'inline-flex', position: 'relative',
               placeItems: 'center', placeContent: 'center',
-              whiteSpace: 'nowrap', backgroundColor: '#FF4E00', color: '#ffffff',
+              whiteSpace: 'nowrap', backgroundColor: '#ffffff', color: '#FF4E00',
               borderRadius: '50px', padding: '14px 24px',
-              border: 'none', cursor: 'pointer', userSelect: 'none',
-              transition: 'transform 0.18s ease',
+              border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer', userSelect: 'none',
+              transition: 'transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease',
             }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+            onMouseEnter={e => { const b = e.currentTarget; b.style.transform = 'scale(1.04)'; b.style.backgroundColor = '#FF4E00'; b.style.color = '#ffffff'; b.style.borderColor = 'rgba(255,255,255,0.5)'; }}
+            onMouseLeave={e => { const b = e.currentTarget; b.style.transform = 'scale(1)'; b.style.backgroundColor = '#ffffff'; b.style.color = '#FF4E00'; b.style.borderColor = 'rgba(0,0,0,0.15)'; }}
             onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.97)')}
             onMouseUp={e => (e.currentTarget.style.transform = 'scale(1.04)')}
           >
@@ -378,7 +401,7 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
 
   if (section.id === 'projects') {
     return (
-      <section id="projects" aria-label="Featured Projects" className="h-screen w-full flex snap-start snap-always">
+      <section id="projects" aria-label="Featured Projects" className="h-screen w-full flex snap-start snap-always bg-white">
         <ProjectsSection section={section} />
       </section>
     );
@@ -509,7 +532,7 @@ const OrangeFooter: React.FC = () => {
 
   return (
     <footer ref={footerRef} className="h-screen w-full relative flex flex-col overflow-hidden" style={{ backgroundColor: '#FF4E00' }}>
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 text-center pt-[296px]">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 text-center pt-16">
         <div
           ref={ref}
           className="anim-fade"
@@ -517,19 +540,18 @@ const OrangeFooter: React.FC = () => {
         >
 
           {/* Name + avatar layered block */}
-          <div style={{ position: 'relative', display: 'inline-block', width: 'clamp(400px, 70vw, 900px)' }}>
+          <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: 'clamp(400px, 70vw, 900px)' }}>
 
-            {/* Big name — sits behind, fills container width */}
+            {/* Big name — slightly bigger, width locked to photo width */}
             <h2
-              className="font-display font-black uppercase text-white"
+              className="font-display font-black uppercase text-white text-center w-full"
               style={{
-                fontSize: 'clamp(3rem, 13vw, 16rem)',
+                fontSize: '8.5rem',
                 lineHeight: 0.82,
                 letterSpacing: '-0.02em',
                 marginBottom: 0,
                 position: 'relative',
                 zIndex: 0,
-                width: '100%',
               }}
             >
               <span style={{ color: 'rgba(255,255,255,0.15)' }}>AHMED</span><br />
@@ -581,8 +603,8 @@ const OrangeFooter: React.FC = () => {
 
           {/* CTA below */}
           <div className="max-w-lg mx-auto mt-10">
-            <p className="text-fluid-subtitle font-light tracking-tight mb-8 text-white font-sans">
-              Ready to elevate your digital presence?
+            <p className="font-light tracking-tight mb-8 text-white font-sans" style={{ fontSize: '32px', lineHeight: 1.2 }}>
+              Let's build something that looks great,<br />works flawlessly, and drives real results.
             </p>
             <a
               href="#contact"
@@ -599,8 +621,11 @@ const OrangeFooter: React.FC = () => {
         </div>
       </div>
 
-      <div className="relative z-10 px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4"
-           style={{ borderTop: '1px solid rgba(255,255,255,0.25)' }}>
+      {/* Footer bar — absolutely pinned so it's always visible */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-20 px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.25)' }}
+      >
         <p className="text-xs font-mono tracking-[0.05em]" style={{ color: 'rgba(255,255,255,0.9)' }}>© 2026 Ahmed Massoud</p>
         <nav aria-label="Social links">
           <ul role="list" className="flex gap-8">
@@ -700,7 +725,6 @@ export default function App() {
             onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
           >
             <span>Collaborate</span>
-            <ChevronRight className="w-3 h-3" aria-hidden="true" />
           </motion.button>
         </motion.div>
       </header>
