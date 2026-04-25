@@ -86,7 +86,11 @@ const HERO_END  = 8;
 const TRANS_END = 10;
 const ABOUT_END = 17;
 
-const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) => {
+const HeroAboutVideo: React.FC<{ activeSection: string; src?: string; notifyReady?: boolean }> = ({
+  activeSection,
+  src = '/all-in-one.mp4',
+  notifyReady = true,
+}) => {
   const vidRef     = useRef<HTMLVideoElement>(null);
   const vstateRef  = useRef<AVState>('hero-loop');
   const rafRef     = useRef(0);
@@ -100,10 +104,12 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
     v.currentTime = 0;
     v.play().catch(() => {});
 
-    // Tell loading screen when this (the real) video is ready — no second element needed
-    const notifyReady = () => window.dispatchEvent(new Event('portfolio-video-ready'));
-    if (v.readyState >= 3) notifyReady();
-    else v.addEventListener('canplaythrough', notifyReady, { once: true });
+    // Tell loading screen when this video is ready (desktop video only)
+    if (notifyReady) {
+      const fire = () => window.dispatchEvent(new Event('portfolio-video-ready'));
+      if (v.readyState >= 3) fire();
+      else v.addEventListener('canplaythrough', fire, { once: true });
+    }
 
     const tick = () => {
       const s = vstateRef.current;
@@ -202,7 +208,7 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
   return (
     <video
       ref={vidRef}
-      src="/all-in-one.mp4"
+      src={src}
       muted playsInline preload="auto"
       style={{
         position: 'absolute', inset: 0, width: '100%', height: '100%',
@@ -217,7 +223,14 @@ const LeftVideoPanel = React.memo<{
   scrollDirRef: React.MutableRefObject<'down' | 'up'>;
 }>(({ activeSection }) => (
   <div className="hidden md:block fixed inset-0 z-0 overflow-hidden bg-white" aria-hidden="true">
-    <HeroAboutVideo activeSection={activeSection} />
+    <HeroAboutVideo activeSection={activeSection} src="/all-in-one.mp4" notifyReady={true} />
+  </div>
+));
+
+/* Mobile video panel — full-screen fixed, same transition logic as desktop */
+const MobileVideoPanel = React.memo<{ activeSection: string }>(({ activeSection }) => (
+  <div className="md:hidden fixed inset-0 z-0 overflow-hidden bg-black" aria-hidden="true">
+    <HeroAboutVideo activeSection={activeSection} src="/hero-mobile.mp4" notifyReady={false} />
   </div>
 ));
 
@@ -547,20 +560,34 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'right center', zIndex: 0 }}
         />
       )}
-      {/* ── Mobile hero: video top, content bottom ──────────────────── */}
+      {/* Mobile hero: content at bottom, video behind from MobileVideoPanel */}
       {isHero && (
-        <div className="md:hidden absolute inset-0 z-[1] flex flex-col">
-          {/* Video — top ~52% */}
-          <div className="flex-[0_0_52%] overflow-hidden">
-            <video
-              src="/hero-mobile.mp4"
-              autoPlay loop muted playsInline preload="auto"
-              className="w-full h-full object-cover object-center"
-            />
-          </div>
-          {/* Content — bottom ~48% */}
-          <div className="flex-1 bg-white px-6 pt-5 pb-32 flex flex-col justify-start overflow-hidden">
+        <div className="md:hidden absolute inset-0 z-[1] flex flex-col justify-end">
+          <div
+            className="px-6 pt-32 pb-12"
+            style={{ background: 'linear-gradient(to top, #ffffff 52%, rgba(255,255,255,0.7) 76%, transparent 100%)' }}
+          >
             <HeroContent section={section} />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile about: content pushed to bottom ~60%, top 40% shows video */}
+      {section.id === 'about' && (
+        <div className="md:hidden absolute inset-0 z-[1] flex flex-col justify-end">
+          <div
+            className="px-6 pt-16 pb-6 overflow-y-auto scrollbar-hide"
+            style={{
+              maxHeight: '62vh',
+              background: 'linear-gradient(to top, #ffffff 68%, rgba(255,255,255,0.85) 86%, transparent 100%)',
+            }}
+          >
+            <InteractiveTitle text={section.title} isHero={false} />
+            {section.items && (
+              <ul role="list" className="mt-4 grid grid-cols-1">
+                {section.items.map((item, i) => <AboutRow key={i} item={item} index={i} />)}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -571,7 +598,7 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
             ? 'hidden md:flex w-full justify-center px-20'
             : section.id === 'contact'
               ? 'w-full md:w-[52%] px-6 md:px-20'
-              : 'w-full md:w-1/2 px-6 md:px-20'
+              : 'hidden md:flex w-full md:w-1/2 px-6 md:px-20'
         }`}
       >
         {isHero ? (
@@ -927,6 +954,26 @@ export default function App() {
   const scrollDirRef = useRef<'down' | 'up'>('down');
   const [appReady, setAppReady] = useState(false);
 
+  // Disable right-click and common devtools shortcuts
+  useEffect(() => {
+    const noContext = (e: MouseEvent) => e.preventDefault();
+    const noKeys = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (
+        e.key === 'F12' ||
+        (ctrl && e.shiftKey && ['i','I','j','J','c','C'].includes(e.key)) ||
+        (ctrl && ['u','U'].includes(e.key)) ||
+        (e.metaKey && e.altKey && ['i','I'].includes(e.key))
+      ) e.preventDefault();
+    };
+    document.addEventListener('contextmenu', noContext);
+    document.addEventListener('keydown', noKeys);
+    return () => {
+      document.removeEventListener('contextmenu', noContext);
+      document.removeEventListener('keydown', noKeys);
+    };
+  }, []);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -964,6 +1011,7 @@ export default function App() {
       <div className="fixed bottom-0 left-0 w-full h-px bg-black/5 z-[110]" aria-hidden="true" />
 
       <LeftVideoPanel activeSection={activeSection} scrollDirRef={scrollDirRef} />
+      <MobileVideoPanel activeSection={activeSection} />
       <ScrollProgressBar containerRef={containerRef} />
 
       <header aria-label="Site header" className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-6">
