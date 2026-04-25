@@ -147,18 +147,19 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
       v.play().catch(() => {});
 
     } else if (activeSection === 'hero' && prev === 'about') {
-      // Fade out → jump to hero start → fade back in (no reverse seek = no lag)
+      // Instantly hide → seek to 0 immediately → fade in only when frame is ready
       vstateRef.current = 'fade-to-hero';
-      setOpacity(0);
       clearTimeout(fadeTimer.current);
-      fadeTimer.current = setTimeout(() => {
-        const vid = vidRef.current;
-        if (!vid) return;
-        vid.currentTime = 0;
-        vid.play().catch(() => {});
+      setOpacity(0);           // instant cut-to-white (no fade-out delay)
+      v.pause();               // pause first so seek is fastest possible
+      v.currentTime = 0;
+      const onSeeked = () => {
+        v.removeEventListener('seeked', onSeeked);
+        v.play().catch(() => {});
         vstateRef.current = 'hero-loop';
-        setOpacity(1);
-      }, 320);
+        setOpacity(1);         // only fade in once frame is decoded & painted
+      };
+      v.addEventListener('seeked', onSeeked);
 
     } else if (activeSection === 'hero' && prev !== 'hero') {
       vstateRef.current = 'hero-loop';
@@ -181,7 +182,7 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
         position: 'absolute', inset: 0, width: '100%', height: '100%',
         objectFit: 'cover', objectPosition: 'center', transform: 'translateZ(0)',
         opacity,
-        transition: opacity === 0 ? 'opacity 0.28s ease' : 'opacity 0.35s ease',
+        transition: opacity === 1 ? 'opacity 0.4s ease' : 'none',
       }}
     />
   );
