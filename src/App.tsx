@@ -218,19 +218,33 @@ const HeroAboutVideo: React.FC<{ activeSection: string; src?: string; notifyRead
   );
 };
 
+/* Only one panel mounts at a time — prevents both videos loading simultaneously */
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return mobile;
+}
+
 const LeftVideoPanel = React.memo<{
   activeSection: string;
   scrollDirRef: React.MutableRefObject<'down' | 'up'>;
 }>(({ activeSection }) => (
-  <div className="hidden md:block fixed inset-0 z-0 overflow-hidden bg-white" aria-hidden="true">
+  <div className="fixed inset-0 z-0 overflow-hidden bg-white" aria-hidden="true">
     <HeroAboutVideo activeSection={activeSection} src="/all-in-one.mp4" notifyReady={true} />
   </div>
 ));
 
 /* Mobile video panel — full-screen fixed, same transition logic as desktop */
 const MobileVideoPanel = React.memo<{ activeSection: string }>(({ activeSection }) => (
-  <div className="md:hidden fixed inset-0 z-0 overflow-hidden bg-black" aria-hidden="true">
-    <HeroAboutVideo activeSection={activeSection} src="/hero-mobile.mp4" notifyReady={false} />
+  <div className="fixed inset-0 z-0 overflow-hidden bg-black" aria-hidden="true">
+    <HeroAboutVideo activeSection={activeSection} src="/hero-mobile.mp4" notifyReady={true} />
   </div>
 ));
 
@@ -514,7 +528,7 @@ const AboutRow: React.FC<{ item: NonNullable<SectionData['items']>[0]; index: nu
   return (
     <li
       ref={ref}
-      className="anim-fade group flex items-center gap-12 py-8 border-b border-black/[0.05] last:border-0 px-4 -mx-4"
+      className="anim-fade group flex items-center gap-6 md:gap-12 py-4 md:py-8 border-b border-black/[0.05] last:border-0 px-4 -mx-4"
       style={{
         transitionDelay: `${0.06 * index}s`,
         ...(visible ? { opacity: 1, transform: 'translateY(0) translateZ(0)' } : {}),
@@ -522,7 +536,7 @@ const AboutRow: React.FC<{ item: NonNullable<SectionData['items']>[0]; index: nu
     >
       <div className="flex-1 flex flex-col gap-2">
         {item.logo
-          ? <img src={item.logo} alt={item.company} className={`${item.logo.includes('tremoloo') ? 'h-9' : 'h-12'} w-auto object-contain object-left`} draggable={false} />
+          ? <img src={item.logo} alt={item.company} className={`${item.logo.includes('tremoloo') ? 'h-6 md:h-9' : 'h-8 md:h-12'} w-auto object-contain object-left`} draggable={false} />
           : <p className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">{item.company}</p>
         }
         <p className="text-gray-500 font-sans text-sm tracking-[0.05em]">{item.role}</p>
@@ -953,6 +967,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useState('hero');
   const scrollDirRef = useRef<'down' | 'up'>('down');
   const [appReady, setAppReady] = useState(false);
+  const isMobile = useIsMobile();
 
   // Disable right-click and common devtools shortcuts
   useEffect(() => {
@@ -1010,8 +1025,10 @@ export default function App() {
       <div className="fixed top-0 left-0 w-full h-px bg-black/10 z-[110]" aria-hidden="true" />
       <div className="fixed bottom-0 left-0 w-full h-px bg-black/5 z-[110]" aria-hidden="true" />
 
-      <LeftVideoPanel activeSection={activeSection} scrollDirRef={scrollDirRef} />
-      <MobileVideoPanel activeSection={activeSection} />
+      {isMobile
+        ? <MobileVideoPanel activeSection={activeSection} />
+        : <LeftVideoPanel activeSection={activeSection} scrollDirRef={scrollDirRef} />
+      }
       <ScrollProgressBar containerRef={containerRef} />
 
       <header aria-label="Site header" className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-6">
