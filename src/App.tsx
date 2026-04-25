@@ -80,7 +80,7 @@ function useInView(
  *  8 – 10s : hero→about transition (forward) / about→hero transition (reverse)
  *  10 – 17s: about loop
  * ─────────────────────────────────────────────────────────────────────── */
-type AVState = 'hero-loop' | 'to-about' | 'about-loop' | 'fade-to-hero';
+type AVState = 'hero-loop' | 'to-about' | 'about-loop' | 'to-hero';
 
 const HERO_END  = 8;
 const TRANS_END = 10;
@@ -91,9 +91,7 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
   const vstateRef  = useRef<AVState>('hero-loop');
   const rafRef     = useRef(0);
   const prevSecRef = useRef(activeSection);
-  // Opacity for the smooth about→hero crossfade (avoids laggy reverse-seek)
-  const [opacity, setOpacity] = useState(1);
-  const fadeTimer  = useRef<ReturnType<typeof setTimeout>>();
+  const reverseRef = useRef(false); // guards the reverse seek chain
 
   // ── rAF control loop ─────────────────────────────────────────────
   useEffect(() => {
@@ -121,7 +119,7 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
           v.currentTime = TRANS_END;
         }
       }
-      // 'fade-to-hero' is handled entirely via setTimeout/opacity — no rAF seek
+      // 'to-hero' reverse is driven by seeked-chain below, not rAF
 
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -129,7 +127,7 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(rafRef.current);
-      clearTimeout(fadeTimer.current);
+      reverseRef.current = false;
       v.pause();
     };
   }, []);
@@ -142,31 +140,54 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
     prevSecRef.current = activeSection;
 
     if (activeSection === 'about' && prev === 'hero') {
+      reverseRef.current = false;
       vstateRef.current = 'to-about';
       v.currentTime = HERO_END;
       v.play().catch(() => {});
 
     } else if (activeSection === 'hero' && prev === 'about') {
-      // Instantly hide → seek to 0 immediately → fade in only when frame is ready
-      vstateRef.current = 'fade-to-hero';
-      clearTimeout(fadeTimer.current);
-      setOpacity(0);           // instant cut-to-white (no fade-out delay)
-      v.pause();               // pause first so seek is fastest possible
-      v.currentTime = 0;
-      const onSeeked = () => {
-        v.removeEventListener('seeked', onSeeked);
-        v.play().catch(() => {});
-        vstateRef.current = 'hero-loop';
-        setOpacity(1);         // only fade in once frame is decoded & painted
+      // Reverse playback: step from TRANS_END (10s) back to HERO_END (8s),
+      // then jump to 0 and start the hero loop.
+      // seeked-event chaining: only issue the next seek once the browser
+      // has finished decoding the previous frame — no rAF overload.
+      vstateRef.current = 'to-hero';
+      reverseRef.current = true;
+      v.pause();
+
+      const FPS  = 30;
+      const step = 1 / FPS;
+
+      const reverseStep = () => {
+        if (!reverseRef.current || vstateRef.current !== 'to-hero') return;
+        const vid = vidRef.current;
+        if (!vid) return;
+
+        const next = vid.currentTime - step;
+        if (next <= HERO_END) {
+          // Transition complete — jump to hero start and loop
+          reverseRef.current = false;
+          vid.currentTime = 0;
+          vid.play().catch(() => {});
+          vstateRef.current = 'hero-loop';
+          return;
+        }
+
+        vid.currentTime = next;
+        vid.addEventListener('seeked', reverseStep, { once: true });
       };
-      v.addEventListener('seeked', onSeeked);
+
+      // Clamp into the transition segment, then kick off the chain
+      v.currentTime = Math.min(v.currentTime, TRANS_END);
+      v.addEventListener('seeked', reverseStep, { once: true });
 
     } else if (activeSection === 'hero' && prev !== 'hero') {
+      reverseRef.current = false;
       vstateRef.current = 'hero-loop';
       v.currentTime = 0;
       v.play().catch(() => {});
 
     } else if (activeSection === 'about' && prev !== 'about') {
+      reverseRef.current = false;
       vstateRef.current = 'about-loop';
       v.currentTime = TRANS_END;
       v.play().catch(() => {});
@@ -181,8 +202,6 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
       style={{
         position: 'absolute', inset: 0, width: '100%', height: '100%',
         objectFit: 'cover', objectPosition: 'center', transform: 'translateZ(0)',
-        opacity,
-        transition: opacity === 1 ? 'opacity 0.4s ease' : 'none',
       }}
     />
   );
