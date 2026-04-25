@@ -574,34 +574,12 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'right center', zIndex: 0 }}
         />
       )}
-      {/* Mobile hero: content at bottom, video behind from MobileVideoPanel */}
+      {/* Mobile hero: video top half (from MobileVideoPanel), white content bottom half */}
       {isHero && (
-        <div className="md:hidden absolute inset-0 z-[1] flex flex-col justify-end">
-          <div
-            className="px-6 pt-32 pb-12"
-            style={{ background: 'linear-gradient(to top, #ffffff 52%, rgba(255,255,255,0.7) 76%, transparent 100%)' }}
-          >
+        <div className="md:hidden absolute inset-0 z-[1] flex flex-col">
+          <div className="flex-[0_0_52%]" />
+          <div className="flex-1 bg-white px-6 pt-5 pb-12 flex flex-col justify-start overflow-hidden">
             <HeroContent section={section} />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile about: content pushed to bottom ~60%, top 40% shows video */}
-      {section.id === 'about' && (
-        <div className="md:hidden absolute inset-0 z-[1] flex flex-col justify-end">
-          <div
-            className="px-6 pt-16 pb-6 overflow-y-auto scrollbar-hide"
-            style={{
-              maxHeight: '62vh',
-              background: 'linear-gradient(to top, #ffffff 68%, rgba(255,255,255,0.85) 86%, transparent 100%)',
-            }}
-          >
-            <InteractiveTitle text={section.title} isHero={false} />
-            {section.items && (
-              <ul role="list" className="mt-4 grid grid-cols-1">
-                {section.items.map((item, i) => <AboutRow key={i} item={item} index={i} />)}
-              </ul>
-            )}
           </div>
         </div>
       )}
@@ -612,7 +590,7 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
             ? 'hidden md:flex w-full justify-center px-20'
             : section.id === 'contact'
               ? 'w-full md:w-[52%] px-6 md:px-20'
-              : 'hidden md:flex w-full md:w-1/2 px-6 md:px-20'
+              : 'w-full md:w-1/2 px-6 md:px-20'
         }`}
       >
         {isHero ? (
