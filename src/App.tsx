@@ -583,6 +583,7 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
               src="/hero-mobile.mp4"
               autoPlay loop muted playsInline preload="auto"
               className="w-full h-full object-cover object-center"
+              style={{ marginTop: '48px' }}
             />
             <div
               className="absolute inset-x-0 bottom-0 h-20"
