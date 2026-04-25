@@ -889,7 +889,7 @@ const LoadingScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
         className="font-sans text-gray-400 text-xs mt-3"
         style={{ letterSpacing: '0.12em', textTransform: 'uppercase' }}
       >
-        {progress < 100 ? <>Crafted with <span style={{ color: '#FF4E00' }}>♥</span></> : 'Ready'}
+        {progress < 100 ? 'Loading' : 'Ready'}
       </p>
     </div>
   );
@@ -934,7 +934,7 @@ const MobileDesktopPrompt: React.FC = () => {
         </div>
 
         <h2 className="font-display font-black text-gray-900 uppercase mb-2" style={{ fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
-          Better on Desktop
+          Better on <span style={{ color: '#FF4E00' }}>Desktop</span>
         </h2>
         <p className="font-sans text-gray-500 text-sm leading-relaxed mb-8 max-w-xs">
           This portfolio is crafted for desktop. Open it on a laptop or desktop for the full experience.
