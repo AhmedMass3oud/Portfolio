@@ -1,5 +1,19 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/IBMPlexSans-Variable.ttf") format("truetype");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/IBMPlexSans-Italic-Variable.ttf") format("truetype");
+  font-weight: 100 700;
+  font-style: italic;
+  font-display: swap;
+}
 
 @font-face {
   font-family: "Clash Display";
@@ -33,7 +47,7 @@
 }
 
 @theme {
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Clash Display", sans-serif;
   --font-serif: "Instrument Serif", serif;
   --font-mono: "JetBrains Mono", monospace;
@@ -70,9 +84,13 @@
   color: var(--color-accent);
 }
 
+html {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
   background-color: #ffffff;
 }
 
@@ -137,11 +155,16 @@ section {
   100% { transform: translate3d(0, 0, 0); }
 }
 
+/* ─── Mobile: project cards narrower so more is visible ─────────── */
+@media (max-width: 767px) {
+  .project-card-flat {
+    width: calc(100vw - 3rem) !important;
+  }
+}
+
 /* ─── Selection ─────────────────────────────────────────────────── */
 ::selection { background: var(--color-brand); color: #ffffff; }
 
-/* ─── Scrollbar ─────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f3f4f6; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+/* ─── Scrollbar — hidden everywhere ─────────────────────────────── */
+::-webkit-scrollbar { display: none; width: 0; }
+* { scrollbar-width: none; -ms-overflow-style: none; }

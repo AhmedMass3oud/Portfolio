@@ -28,7 +28,25 @@
       "Bash(git checkout *)",
       "Bash(cp \"/Users/ahmedmassoud/Documents/about to hero final.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/about-to-hero.mp4\")",
       "Bash(cp \"/Users/ahmedmassoud/Documents/hero to about final.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/hero-to-about.mp4\")",
-      "Bash(cp \"/Users/ahmedmassoud/Documents/Hero.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/hero.mp4\")"
+      "Bash(cp \"/Users/ahmedmassoud/Documents/Hero.mp4\" \"/Users/ahmedmassoud/Downloads/portfolioo/public/hero.mp4\")",
+      "WebFetch(domain:dribbble.com)",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "Bash(npx vercel *)",
+      "Bash(npm i *)",
+      "Read(//tmp/**)",
+      "Bash(ffprobe -v quiet -print_format json -show_streams \"/Users/ahmedmassoud/Downloads/portfolioo/public/all-in-one.mp4\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); v=[s for s in d['streams'] if s['codec_type']=='video'][0]; print\\(f\\\\\"Size: {v['width']}x{v['height']}, Duration: {v.get\\('duration','?'\\)}s\\\\\"\\)\")",
+      "Bash(sudo npm *)",
+      "Bash(~/.npm-global/bin/vercel --version)",
+      "Bash(~/.npm-global/bin/vercel deploy *)",
+      "Bash(~/.npm-global/bin/vercel login *)",
+      "Bash(jobs)",
+      "Bash(open \"https://vercel.com/oauth/device?user_code=GDDG-TLVN\")",
+      "Bash(~/.npm-global/bin/vercel project *)",
+      "Bash(~/.npm-global/bin/vercel link *)",
+      "Bash(~/.npm-global/bin/vercel inspect *)",
+      "Read(//Users/ahmedmassoud/**)"
     ]
   }
 }

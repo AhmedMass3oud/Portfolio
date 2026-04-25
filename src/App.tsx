@@ -2,7 +2,6 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { SECTIONS } from './constants';
-import { AboutVideoBackground } from './components/AboutTransition';
 
 interface ProjectItem {
   name: string;
@@ -24,8 +23,25 @@ interface SectionData {
   socials?: string[];
 }
 
-const SECTION_VIDEOS: Record<string, string> = {
-  hero: '/hero.mp4',
+/* ─── Orange scroll-progress bar ────────────────────────────────────── */
+const ScrollProgressBar: React.FC<{ containerRef: React.RefObject<HTMLDivElement | null> }> = ({ containerRef }) => {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const max = scrollHeight - clientHeight;
+      setProgress(max > 0 ? scrollTop / max : 0);
+    };
+    container.addEventListener('scroll', update, { passive: true });
+    return () => container.removeEventListener('scroll', update);
+  }, []);
+  return (
+    <div className="fixed right-0 top-0 h-full w-[3px] z-[150] pointer-events-none" style={{ background: 'rgba(0,0,0,0.06)' }}>
+      <div className="w-full" style={{ height: `${progress * 100}%`, background: '#FF4E00' }} />
+    </div>
+  );
 };
 
 /* ─── useInView — drives CSS class toggling via IntersectionObserver ── */
@@ -54,65 +70,129 @@ function useInView(
   return visible;
 }
 
-/* ─── Video panel ──────────────────────────────────────────────────── */
-const SectionVideo = React.memo<{ src: string; isActive: boolean }>(({ src, isActive }) => {
-  const ref = useRef<HTMLVideoElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+/* ─── All-in-one video controller ───────────────────────────────────────
+ *  0 – 8s  : hero loop
+ *  8 – 9s  : hero→about transition (forward) / about→hero transition (reverse)
+ *  9 – 15s : about loop
+ * ─────────────────────────────────────────────────────────────────────── */
+/* ─── All-in-one video controller ───────────────────────────────────────
+ *  0 – 8s  : hero loop
+ *  8 – 10s : hero→about transition (forward) / about→hero transition (reverse)
+ *  10 – 17s: about loop
+ * ─────────────────────────────────────────────────────────────────────── */
+type AVState = 'hero-loop' | 'to-about' | 'about-loop' | 'fade-to-hero';
 
-  // Perfect seamless loop — seek manually 0.15s before end instead of relying
-  // on the browser's native loop which has a small compositor gap in Chromium.
+const HERO_END  = 8;
+const TRANS_END = 10;
+const ABOUT_END = 17;
+
+const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) => {
+  const vidRef     = useRef<HTMLVideoElement>(null);
+  const vstateRef  = useRef<AVState>('hero-loop');
+  const rafRef     = useRef(0);
+  const prevSecRef = useRef(activeSection);
+  // Opacity for the smooth about→hero crossfade (avoids laggy reverse-seek)
+  const [opacity, setOpacity] = useState(1);
+  const fadeTimer  = useRef<ReturnType<typeof setTimeout>>();
+
+  // ── rAF control loop ─────────────────────────────────────────────
   useEffect(() => {
-    const v = ref.current;
+    const v = vidRef.current;
     if (!v) return;
-    const onTimeUpdate = () => {
-      if (v.duration && v.currentTime >= v.duration - 0.15) {
-        v.currentTime = 0;
+    v.currentTime = 0;
+    v.play().catch(() => {});
+
+    const tick = () => {
+      const s = vstateRef.current;
+
+      if (s === 'hero-loop') {
+        if (v.currentTime >= HERO_END - 0.12) {
+          v.currentTime = 0;
+          if (v.paused) v.play().catch(() => {});
+        }
+      } else if (s === 'to-about') {
+        if (v.currentTime >= TRANS_END - 0.05) {
+          vstateRef.current = 'about-loop';
+          v.currentTime = TRANS_END;
+          if (v.paused) v.play().catch(() => {});
+        }
+      } else if (s === 'about-loop') {
+        if (v.currentTime >= ABOUT_END - 0.12) {
+          v.currentTime = TRANS_END;
+        }
       }
+      // 'fade-to-hero' is handled entirely via setTimeout/opacity — no rAF seek
+
+      rafRef.current = requestAnimationFrame(tick);
     };
-    v.addEventListener('timeupdate', onTimeUpdate);
-    return () => v.removeEventListener('timeupdate', onTimeUpdate);
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      clearTimeout(fadeTimer.current);
+      v.pause();
+    };
   }, []);
 
+  // ── Section-change transitions ────────────────────────────────────
   useLayoutEffect(() => {
-    const v = ref.current;
+    const v = vidRef.current;
     if (!v) return;
-    if (isActive) {
-      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    const prev = prevSecRef.current;
+    prevSecRef.current = activeSection;
+
+    if (activeSection === 'about' && prev === 'hero') {
+      vstateRef.current = 'to-about';
+      v.currentTime = HERO_END;
+      v.play().catch(() => {});
+
+    } else if (activeSection === 'hero' && prev === 'about') {
+      // Fade out → jump to hero start → fade back in (no reverse seek = no lag)
+      vstateRef.current = 'fade-to-hero';
+      setOpacity(0);
+      clearTimeout(fadeTimer.current);
+      fadeTimer.current = setTimeout(() => {
+        const vid = vidRef.current;
+        if (!vid) return;
+        vid.currentTime = 0;
+        vid.play().catch(() => {});
+        vstateRef.current = 'hero-loop';
+        setOpacity(1);
+      }, 320);
+
+    } else if (activeSection === 'hero' && prev !== 'hero') {
+      vstateRef.current = 'hero-loop';
       v.currentTime = 0;
       v.play().catch(() => {});
-    } else {
-      v.pause();
-      timerRef.current = setTimeout(() => { if (v) v.currentTime = 0; }, 80);
+
+    } else if (activeSection === 'about' && prev !== 'about') {
+      vstateRef.current = 'about-loop';
+      v.currentTime = TRANS_END;
+      v.play().catch(() => {});
     }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [isActive]);
+  }, [activeSection]);
 
   return (
     <video
-      ref={ref}
-      src={src}
+      ref={vidRef}
+      src="/all-in-one.mp4"
       muted playsInline preload="auto"
       style={{
         position: 'absolute', inset: 0, width: '100%', height: '100%',
-        objectFit: 'cover', objectPosition: 'center',
-        opacity: isActive ? 1 : 0,
-        transition: isActive ? 'opacity 0.18s ease' : 'opacity 0.08s ease',
-        willChange: 'opacity',
-        transform: 'translateZ(0)',
+        objectFit: 'cover', objectPosition: 'center', transform: 'translateZ(0)',
+        opacity,
+        transition: opacity === 0 ? 'opacity 0.28s ease' : 'opacity 0.35s ease',
       }}
     />
   );
-});
+};
 
 const LeftVideoPanel = React.memo<{
   activeSection: string;
   scrollDirRef: React.MutableRefObject<'down' | 'up'>;
-}>(({ activeSection, scrollDirRef }) => (
-  <div className="fixed inset-0 z-0 overflow-hidden bg-black" aria-hidden="true">
-    {Object.entries(SECTION_VIDEOS).map(([id, src]) => (
-      <SectionVideo key={id} src={src} isActive={activeSection === id} />
-    ))}
-    <AboutVideoBackground isActive={activeSection === 'about'} scrollDirRef={scrollDirRef} />
+}>(({ activeSection }) => (
+  <div className="hidden md:block fixed inset-0 z-0 overflow-hidden bg-white" aria-hidden="true">
+    <HeroAboutVideo activeSection={activeSection} />
   </div>
 ));
 
@@ -197,36 +277,27 @@ const FadeIn: React.FC<{
 
 /* ─── Hero section content ─────────────────────────────────────────── */
 const HeroContent: React.FC<{ section: SectionData }> = ({ section }) => {
-  const [copied, setCopied] = useState(false);
   const email = section.email ?? 'a7medmass3oud@gmail.com';
-  const handleCopy = () => {
-    navigator.clipboard.writeText(email).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
 
   return (
     <div className="flex flex-col gap-3 w-full">
       <InteractiveTitle text={section.title} isHero />
       <div className="flex flex-col gap-3 max-w-2xl">
-        <FadeIn delay={0.35}><p className="text-fluid-subtitle text-gray-600 font-light leading-tight">{section.subtitle}</p></FadeIn>
+        <FadeIn delay={0.35}><p className="text-fluid-subtitle text-gray-600 font-normal leading-tight">{section.subtitle}</p></FadeIn>
         {section.description && (
-          <FadeIn delay={0.2}><p className="text-xl font-light text-gray-600 leading-relaxed">{section.description}</p></FadeIn>
+          <FadeIn delay={0.2}><p className="text-xl font-normal text-gray-600 leading-relaxed">{section.description}</p></FadeIn>
         )}
         <FadeIn delay={0.45}>
-          <button
-            type="button"
-            onClick={handleCopy}
-            aria-live="polite"
-            aria-label="Copy Email"
+          <a
+            href={`mailto:${email}`}
+            aria-label="Send Email"
             style={{
-              fontFamily: '"Almarai", var(--font-sans, "Space Grotesk")',
+              fontFamily: 'var(--font-sans, "IBM Plex Sans")',
               fontWeight: 500, fontSize: '16px', lineHeight: '1em',
               display: 'inline-flex', position: 'relative',
               placeItems: 'center', placeContent: 'center',
               whiteSpace: 'nowrap', backgroundColor: '#ffffff', color: '#FF4E00',
-              borderRadius: '50px', padding: '14px 24px',
+              borderRadius: '50px', padding: '14px 24px', textDecoration: 'none',
               border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer', userSelect: 'none',
               transition: 'transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease',
             }}
@@ -235,12 +306,8 @@ const HeroContent: React.FC<{ section: SectionData }> = ({ section }) => {
             onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.97)')}
             onMouseUp={e => (e.currentTarget.style.transform = 'scale(1.04)')}
           >
-            <span aria-hidden="true" style={{ position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap', pointerEvents: 'none' }}>Copy Email</span>
-            <span style={{ position: 'relative', display: 'grid', placeItems: 'center' }}>
-              <span style={{ gridArea: '1/1', whiteSpace: 'nowrap', opacity: copied ? 0 : 1, transition: 'opacity 0.2s ease' }}>Copy Email</span>
-              <span aria-hidden="true" style={{ gridArea: '1/1', whiteSpace: 'nowrap', opacity: copied ? 1 : 0, transition: 'opacity 0.2s ease' }}>Copied!</span>
-            </span>
-          </button>
+            Send Email
+          </a>
         </FadeIn>
       </div>
     </div>
@@ -262,7 +329,7 @@ const ProjectsSection: React.FC<{ section: SectionData }> = ({ section }) => {
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
-    const AUTO_SPEED = 0.6;
+    const AUTO_SPEED = 1.4;
     let halfWidth = 0;
     const measure = () => { halfWidth = el.scrollWidth / 3; };
     measure();
@@ -318,21 +385,19 @@ const ProjectsSection: React.FC<{ section: SectionData }> = ({ section }) => {
 
   return (
     <div className="relative z-[1] w-full flex flex-col overflow-hidden">
-      <div className="shrink-0 pt-28 pb-6 px-8 md:px-12">
+      <div className="shrink-0 pt-20 md:pt-28 pb-6 px-6 md:px-12">
         <FadeIn>
-          <h2
-            className="font-display font-black uppercase whitespace-nowrap text-gray-900"
-            style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2.25rem)', lineHeight: 1, letterSpacing: '-0.01em' }}
-          >
+          <h2 className="font-display font-black uppercase text-gray-900 text-fluid-section-title">
             Featured <span style={{ color: '#FF4E00' }}>Projects</span>
           </h2>
         </FadeIn>
         <FadeIn delay={0.2}>
-          <p className="text-sm font-mono text-gray-400 tracking-[0.05em] mt-3">{section.subtitle}</p>
+          <p className="text-base font-sans text-gray-400 tracking-[0.04em] mt-3">{section.subtitle}</p>
         </FadeIn>
       </div>
 
-      <div className="flex-1 relative min-h-0">
+      {/* ── Desktop: single auto-scrolling row ─────────────────────── */}
+      <div className="hidden md:flex flex-1 relative min-h-0">
         <div
           ref={trackRef}
           onPointerDown={onPointerDown}
@@ -343,7 +408,7 @@ const ProjectsSection: React.FC<{ section: SectionData }> = ({ section }) => {
           className="h-full w-full overflow-x-auto overflow-y-hidden scrollbar-hide select-none"
           style={{ cursor: 'grab', touchAction: 'pan-y' }}
         >
-          <div className="flex gap-6 h-full w-max py-6 px-8">
+          <div className="flex gap-6 h-full w-max py-6 px-6">
             {projects.map((p, i) => (
               <div
                 key={i}
@@ -352,19 +417,53 @@ const ProjectsSection: React.FC<{ section: SectionData }> = ({ section }) => {
               >
                 <div className="flex-1 overflow-hidden bg-gray-100 min-h-0">
                   {p.video ? (
-                    <video src={p.video} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                    <video src={p.video} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover object-top" />
                   ) : (
-                    <img src={p.image} alt={p.name} loading="lazy" decoding="async" draggable={false} className="w-full h-full object-cover" />
+                    <img src={p.image} alt={p.name} loading="lazy" decoding="async" draggable={false} className="w-full h-full object-cover object-top" />
                   )}
                 </div>
                 <div className="shrink-0 p-6 flex flex-col gap-1">
-                  <span className="text-[11px] font-mono text-gray-400 tracking-[0.05em]">{p.category}</span>
-                  <h3 className="font-display font-black text-gray-900 text-lg leading-tight">{p.name}</h3>
+                  <span className="text-[11px] font-sans text-gray-400 tracking-[0.05em]">{p.category}</span>
+                  <h3 className="font-sans font-black text-gray-900 text-lg leading-tight">{p.name}</h3>
                 </div>
               </div>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Mobile: 2 infinite horizontal ticker rows — fill remaining height */}
+      <div className="md:hidden flex-1 flex flex-col gap-3 overflow-hidden pb-6 min-h-0">
+        {[
+          { items: section.projects?.slice(0, 7) ?? [], cls: 'ticker-left'  },
+          { items: section.projects?.slice(7)    ?? [], cls: 'ticker-right' },
+        ].map(({ items, cls }, rowIdx) => (
+          <div key={rowIdx} className="flex-1 overflow-hidden min-h-0">
+            <div className={`flex gap-3 h-full w-max ${cls}`}>
+              {[...items, ...items].map((p, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 h-full flex flex-col bg-white border border-gray-100 rounded-[16px] overflow-hidden"
+                  style={{ width: '100vw' }}
+                >
+                  <div className="flex-1 overflow-hidden bg-gray-100 min-h-0">
+                    {p.video ? (
+                      <video src={p.video} autoPlay loop muted playsInline preload="metadata"
+                        className="w-full h-full object-cover object-top" />
+                    ) : (
+                      <img src={p.image} alt={p.name} loading="lazy" decoding="async" draggable={false}
+                        className="w-full h-full object-cover object-top" />
+                    )}
+                  </div>
+                  <div className="shrink-0 p-2.5 flex flex-col gap-0.5">
+                    <span className="text-[9px] font-sans text-gray-400 tracking-[0.04em] uppercase">{p.category}</span>
+                    <h3 className="font-sans font-black text-gray-900 text-xs leading-tight">{p.name}</h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -385,12 +484,12 @@ const AboutRow: React.FC<{ item: NonNullable<SectionData['items']>[0]; index: nu
     >
       <div className="flex-1 flex flex-col gap-2">
         {item.logo
-          ? <img src={item.logo} alt={item.company} className="h-10 w-auto object-contain object-left" draggable={false} />
-          : <p className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{item.company}</p>
+          ? <img src={item.logo} alt={item.company} className="h-12 w-auto object-contain object-left" draggable={false} />
+          : <p className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">{item.company}</p>
         }
-        <p className="text-gray-500 font-mono text-xs tracking-[0.05em]">{item.role}</p>
+        <p className="text-gray-500 font-sans text-sm tracking-[0.05em]">{item.role}</p>
       </div>
-      <span className="font-mono text-xs text-gray-500 shrink-0">{item.period}</span>
+      <span className="font-sans text-sm text-gray-500 shrink-0">{item.period}</span>
     </li>
   );
 };
@@ -411,7 +510,7 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
     <section
       id={section.id}
       aria-label={section.title.replace('\n', ' ')}
-      className="h-screen w-full flex snap-start snap-always"
+      className={`h-screen w-full flex snap-start snap-always${section.id === 'contact' ? ' bg-white' : ''}${section.id === 'about' ? ' items-center' : ''}`}
       style={{ position: 'relative' }}
     >
       {section.id === 'contact' && (
@@ -419,24 +518,46 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
           src="https://d8j0ntlcm91z4.cloudfront.net/user_2zvTR2NOoUjz8SC8aobXQUJkAIB/hf_20260423_205014_a0d40d02-37ca-462a-9f5b-b7f789e2515f.mp4"
           autoPlay loop muted playsInline preload="auto"
           aria-hidden="true"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
+          className="hidden md:block"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'right center', zIndex: 0 }}
         />
       )}
+      {/* ── Mobile hero: video top, content bottom ──────────────────── */}
+      {isHero && (
+        <div className="md:hidden absolute inset-0 z-[1] flex flex-col">
+          {/* Video — top ~52% */}
+          <div className="flex-[0_0_52%] overflow-hidden">
+            <video
+              src="/hero-mobile.mp4"
+              autoPlay loop muted playsInline preload="auto"
+              className="w-full h-full object-cover object-center"
+            />
+          </div>
+          {/* Content — bottom ~48% */}
+          <div className="flex-1 bg-white px-6 pt-5 pb-32 flex flex-col justify-start overflow-hidden">
+            <HeroContent section={section} />
+          </div>
+        </div>
+      )}
+
       <div
         className={`relative z-[1] flex flex-col overflow-hidden ${
-          isHero ? 'w-full justify-center px-10 md:px-20' : 'px-8 md:px-12'
+          isHero
+            ? 'hidden md:flex w-full justify-center px-20'
+            : section.id === 'contact'
+              ? 'w-full md:w-[52%] px-6 md:px-12'
+              : 'w-full md:w-1/2 px-6 md:px-12'
         }`}
-        style={!isHero ? { width: section.id === 'contact' ? '52%' : '50%' } : undefined}
       >
         {isHero ? (
           <HeroContent section={section} />
         ) : (
           <>
-            <div className="shrink-0 pt-28 pb-6 border-b border-black/5">
+            <div className={`shrink-0 pb-6 ${section.id === 'about' ? 'pt-0' : 'pt-20 md:pt-28'} ${section.id === 'contact' ? '' : ''}`}>
               <InteractiveTitle text={section.title} isHero={false} />
               {section.subtitle && (
                 <FadeIn delay={0.2}>
-                  <p className="text-fluid-subtitle text-gray-600 font-light leading-tight mt-4">{section.subtitle}</p>
+                  <p className={`text-gray-600 font-normal leading-tight mt-4 ${section.id === 'contact' ? 'text-lg' : 'text-fluid-subtitle'}`}>{section.subtitle}</p>
                 </FadeIn>
               )}
             </div>
@@ -452,8 +573,8 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
                 <div className="space-y-10">
                   <ul role="list" className="flex flex-col">
                     {[
-                      { label: 'LinkedIn', href: '#' },
-                      { label: 'Dribbble', href: '#' },
+                      { label: 'LinkedIn', href: 'https://www.linkedin.com/in/mass3oudui/' },
+                      { label: 'Dribbble', href: 'https://dribbble.com/ahmedmassoud' },
                       { label: 'WhatsApp', href: `https://wa.me/${section.whatsapp}` },
                     ].map((s) => (
                       <li key={s.label}>
@@ -473,7 +594,6 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
                     <p className="text-fluid-subtitle font-bold tracking-tighter text-gray-900">
                       <a href={`mailto:${section.email}`} className="hover:italic transition-all break-all">{section.email}</a>
                     </p>
-                    <div className="h-px w-full bg-black/10 mt-6" />
                   </div>
                 </div>
               )}
@@ -506,10 +626,10 @@ const OrangeFooter: React.FC = () => {
       const rect = footer.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
-      // Map cursor offset → max ±2px
+      // Map cursor offset → max ±8px
       targetRef.current = {
-        x: ((e.clientX - cx) / (rect.width / 2)) * 2,
-        y: ((e.clientY - cy) / (rect.height / 2)) * 2,
+        x: ((e.clientX - cx) / (rect.width / 2)) * 8,
+        y: ((e.clientY - cy) / (rect.height / 2)) * 8,
       };
     };
 
@@ -532,7 +652,7 @@ const OrangeFooter: React.FC = () => {
 
   return (
     <footer ref={footerRef} className="h-screen w-full relative flex flex-col overflow-hidden" style={{ backgroundColor: '#FF4E00' }}>
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 text-center pt-16">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center pt-16">
         <div
           ref={ref}
           className="anim-fade"
@@ -603,16 +723,18 @@ const OrangeFooter: React.FC = () => {
 
           {/* CTA below */}
           <div className="max-w-lg mx-auto mt-10">
-            <p className="font-light tracking-tight mb-8 text-white font-sans" style={{ fontSize: '32px', lineHeight: 1.2 }}>
+            <p
+              className="font-normal tracking-tight mb-8 text-white font-sans"
+              style={{ fontSize: 'clamp(1.35rem, 2vw, 1.85rem)', lineHeight: 1.3 }}
+            >
               Let's build something that looks great,<br />works flawlessly, and drives real results.
             </p>
             <a
-              href="#contact"
-              className="inline-block px-10 py-5 bg-white rounded-full font-black tracking-widest text-sm"
+              href="mailto:a7medmass3oud@gmail.com"
+              className="inline-block px-10 py-5 bg-white rounded-full font-sans font-black tracking-widest text-sm"
               style={{ color: '#FF4E00', transition: 'transform 0.2s ease' }}
               onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
               onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-              onClick={e => { e.preventDefault(); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               Start Collaboration
             </a>
@@ -623,14 +745,17 @@ const OrangeFooter: React.FC = () => {
 
       {/* Footer bar — absolutely pinned so it's always visible */}
       <div
-        className="absolute bottom-0 left-0 right-0 z-20 px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4"
+        className="absolute bottom-0 left-0 right-0 z-20 px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4"
         style={{ borderTop: '1px solid rgba(255,255,255,0.25)' }}
       >
-        <p className="text-xs font-mono tracking-[0.05em]" style={{ color: 'rgba(255,255,255,0.9)' }}>© 2026 Ahmed Massoud</p>
+        <p className="text-xs font-sans tracking-[0.05em]" style={{ color: 'rgba(255,255,255,0.9)' }}>© 2026 Ahmed Massoud</p>
         <nav aria-label="Social links">
           <ul role="list" className="flex gap-8">
-            {['LinkedIn', 'Dribbble', 'Behance'].map(name => (
-              <li key={name}><a href="#" className="text-xs font-mono font-bold tracking-[0.05em] text-white hover:underline">{name}</a></li>
+            {[
+              { name: 'LinkedIn', href: 'https://www.linkedin.com/in/mass3oudui/' },
+              { name: 'Dribbble', href: 'https://dribbble.com/ahmedmassoud' },
+            ].map(({ name, href }) => (
+              <li key={name}><a href={href} target="_blank" rel="noopener noreferrer" className="text-xs font-sans font-bold tracking-[0.05em] text-white hover:underline">{name}</a></li>
             ))}
           </ul>
         </nav>
@@ -639,6 +764,7 @@ const OrangeFooter: React.FC = () => {
   );
 };
 
+
 /* ─── App ────────────────────────────────────────────────────────────── */
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -646,26 +772,33 @@ export default function App() {
   const scrollDirRef = useRef<'down' | 'up'>('down');
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id); }),
-      { root: containerRef.current, rootMargin: '-25% 0px -25% 0px', threshold: 0 }
-    );
-    SECTIONS.forEach(s => { const el = document.getElementById(s.id); if (el) observer.observe(el); });
-
     const container = containerRef.current;
-    let lastTop = container?.scrollTop ?? 0;
+    if (!container) return;
+
+    // All sections in scroll order: hero, about, projects, contact, footer
+    const sectionIds = [...SECTIONS.map(s => s.id), 'footer-section'];
+    let lastTop = container.scrollTop;
+
     const onScroll = () => {
-      const cur = container?.scrollTop ?? 0;
+      const cur = container.scrollTop;
       scrollDirRef.current = cur > lastTop ? 'down' : 'up';
       lastTop = cur;
+
+      // Determine active section from scroll position (reliable with snap scrolling)
+      const h = container.clientHeight;
+      if (h > 0) {
+        const idx = Math.min(Math.round(cur / h), sectionIds.length - 1);
+        setActiveSection(sectionIds[idx]);
+      }
     };
-    container?.addEventListener('scroll', onScroll, { passive: true });
-    return () => { observer.disconnect(); container?.removeEventListener('scroll', onScroll); };
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
   }, []);
 
 
   return (
-    <div className="selection:bg-black selection:text-white grain antialiased">
+    <div className="grain antialiased w-screen h-screen overflow-hidden bg-white">
       <a href="#hero" className="sr-only focus:not-sr-only fixed top-4 left-4 z-[200] bg-black text-white px-4 py-2 rounded-full font-bold">
         Skip to content
       </a>
@@ -673,17 +806,18 @@ export default function App() {
       <div className="fixed bottom-0 left-0 w-full h-px bg-black/5 z-[110]" aria-hidden="true" />
 
       <LeftVideoPanel activeSection={activeSection} scrollDirRef={scrollDirRef} />
+      <ScrollProgressBar containerRef={containerRef} />
 
-      <header aria-label="Site header" className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-8">
+      <header aria-label="Site header" className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.33, 1, 0.68, 1] }}
-          className="flex items-center gap-2"
+          className="hidden md:flex items-center gap-2"
         >
           <nav
             aria-label="Primary Navigation"
-            className="flex items-center gap-1 px-2 h-12 rounded-[40px]"
+            className="flex items-stretch gap-1 px-[4px] py-[4px] h-12 rounded-[40px]"
             style={{
               background: 'rgba(255,255,255,0.4)',
               backdropFilter: 'blur(40px)',
@@ -698,14 +832,19 @@ export default function App() {
                   key={s.id}
                   href={`#${s.id}`}
                   aria-current={active ? 'page' : undefined}
-                  className="nav-pill-item px-4 h-8 flex items-center rounded-[32px] text-xs font-mono font-bold tracking-[0.05em] whitespace-nowrap capitalize"
-                  style={{
-                    color: active ? '#ffffff' : 'rgba(0,0,0,0.65)',
-                    backgroundColor: active ? '#FF4E00' : 'transparent',
-                  }}
+                  className={`nav-pill-item relative px-4 flex items-center rounded-[32px] text-xs font-sans tracking-[0.05em] whitespace-nowrap capitalize ${active ? 'font-bold' : 'font-normal'} ${active ? 'flex' : 'hidden md:flex'}`}
+                  style={{ color: active ? '#ffffff' : 'rgba(0,0,0,0.65)', zIndex: 0 }}
                   onClick={e => { e.preventDefault(); document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' }); }}
                 >
-                  {s.id}
+                  {active && (
+                    <motion.span
+                      layoutId="nav-active-pill"
+                      className="absolute inset-0 rounded-[32px]"
+                      style={{ backgroundColor: '#FF4E00', zIndex: -1 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{s.id}</span>
                 </a>
               );
             })}
@@ -715,14 +854,14 @@ export default function App() {
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             aria-label="Jump to contact section"
-            className="cta-btn flex items-center gap-2 px-5 h-12 rounded-[40px] text-white font-mono text-xs tracking-[0.05em] font-black"
+            className="cta-btn flex items-center gap-2 px-5 h-12 rounded-[40px] text-white font-sans text-xs tracking-[0.05em] font-normal"
             style={{
-              background: 'rgba(255,78,0,0.88)',
+              background: '#FF4E00',
               backdropFilter: 'blur(40px)',
               WebkitBackdropFilter: 'blur(40px)',
               border: '1px solid rgba(255,110,50,0.45)',
             }}
-            onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => { window.location.href = 'mailto:a7medmass3oud@gmail.com'; }}
           >
             <span>Collaborate</span>
           </motion.button>
