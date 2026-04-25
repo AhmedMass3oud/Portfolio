@@ -100,6 +100,11 @@ const HeroAboutVideo: React.FC<{ activeSection: string }> = ({ activeSection }) 
     v.currentTime = 0;
     v.play().catch(() => {});
 
+    // Tell loading screen when this (the real) video is ready — no second element needed
+    const notifyReady = () => window.dispatchEvent(new Event('portfolio-video-ready'));
+    if (v.readyState >= 3) notifyReady();
+    else v.addEventListener('canplaythrough', notifyReady, { once: true });
+
     const tick = () => {
       const s = vstateRef.current;
 
@@ -504,7 +509,7 @@ const AboutRow: React.FC<{ item: NonNullable<SectionData['items']>[0]; index: nu
     >
       <div className="flex-1 flex flex-col gap-2">
         {item.logo
-          ? <img src={item.logo} alt={item.company} className={`${item.logo.includes('tremoloo') ? 'h-7' : 'h-12'} w-auto object-contain object-left`} draggable={false} />
+          ? <img src={item.logo} alt={item.company} className={`${item.logo.includes('tremoloo') ? 'h-9' : 'h-12'} w-auto object-contain object-left`} draggable={false} />
           : <p className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">{item.company}</p>
         }
         <p className="text-gray-500 font-sans text-sm tracking-[0.05em]">{item.role}</p>
@@ -802,7 +807,7 @@ const LoadingScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   }, [onDone]);
 
   useEffect(() => {
-    // Animate progress bar to ~85% while video loads
+    // Animate progress bar to ~85% while the real video (in HeroAboutVideo) loads
     let p = 0;
     const iv = setInterval(() => {
       p += Math.random() * 9 + 3;
@@ -810,18 +815,14 @@ const LoadingScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
       setProgress(Math.round(p));
     }, 120);
 
-    // Wait for main video to be ready
-    const vid = document.createElement('video');
-    vid.src = '/all-in-one.mp4';
-    vid.preload = 'auto';
-    vid.muted = true;
-    vid.addEventListener('canplaythrough', () => { clearInterval(iv); finish(); }, { once: true });
-    vid.addEventListener('error', () => { clearInterval(iv); finish(); }, { once: true });
+    // Listen for the event dispatched by HeroAboutVideo when canplaythrough fires
+    const onReady = () => { clearInterval(iv); finish(); };
+    window.addEventListener('portfolio-video-ready', onReady, { once: true });
 
-    // Fallback: max 6 s
-    const t = setTimeout(() => { clearInterval(iv); finish(); }, 6000);
+    // Fallback: max 6 s (slow connection)
+    const t = setTimeout(onReady, 6000);
 
-    return () => { clearInterval(iv); clearTimeout(t); };
+    return () => { clearInterval(iv); clearTimeout(t); window.removeEventListener('portfolio-video-ready', onReady); };
   }, [finish]);
 
   return (
