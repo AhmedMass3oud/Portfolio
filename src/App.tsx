@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SECTIONS } from './constants';
 
 interface ProjectItem {
@@ -793,6 +794,7 @@ export default function App() {
 
   return (
     <div className="grain antialiased w-screen h-screen overflow-hidden bg-white">
+      <SpeedInsights />
       <a href="#hero" className="sr-only focus:not-sr-only fixed top-4 left-4 z-[200] bg-black text-white px-4 py-2 rounded-full font-bold">
         Skip to content
       </a>
