@@ -873,7 +873,7 @@ const LoadingScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
         className="font-display font-black text-gray-900 uppercase text-center"
         style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', lineHeight: 0.88, letterSpacing: '-0.02em', marginBottom: '3rem' }}
       >
-        Ahmed<br />Massoud
+        Ahmed<br /><span style={{ color: '#FF4E00' }}>Massoud</span>
       </h1>
 
       {/* Progress bar */}
@@ -889,7 +889,7 @@ const LoadingScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
         className="font-sans text-gray-400 text-xs mt-3"
         style={{ letterSpacing: '0.12em', textTransform: 'uppercase' }}
       >
-        {progress < 100 ? 'Loading' : 'Ready'}
+        {progress < 100 ? <>Crafted with <span style={{ color: '#FF4E00' }}>♥</span></> : 'Ready'}
       </p>
     </div>
   );
