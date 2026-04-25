@@ -574,11 +574,23 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'right center', zIndex: 0 }}
         />
       )}
-      {/* Mobile hero: video top half (from MobileVideoPanel), white content bottom half */}
+      {/* Mobile hero: looping video on top with gradient fade, all content below */}
       {isHero && (
         <div className="md:hidden absolute inset-0 z-[1] flex flex-col">
-          <div className="flex-[0_0_52%]" />
-          <div className="flex-1 bg-white px-6 pt-5 pb-12 flex flex-col justify-start overflow-hidden">
+          {/* Video — top ~44% with gradient fade at bottom edge */}
+          <div className="relative flex-[0_0_44%] overflow-hidden">
+            <video
+              src="/hero-mobile.mp4"
+              autoPlay loop muted playsInline preload="auto"
+              className="w-full h-full object-cover object-center"
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 h-20"
+              style={{ background: 'linear-gradient(to bottom, transparent, #ffffff)' }}
+            />
+          </div>
+          {/* Content — remaining height, all content visible */}
+          <div className="flex-1 bg-white px-6 pt-3 pb-10 flex flex-col justify-start overflow-hidden">
             <HeroContent section={section} />
           </div>
         </div>
@@ -1003,10 +1015,7 @@ export default function App() {
       <div className="fixed top-0 left-0 w-full h-px bg-black/10 z-[110]" aria-hidden="true" />
       <div className="fixed bottom-0 left-0 w-full h-px bg-black/5 z-[110]" aria-hidden="true" />
 
-      {isMobile
-        ? <MobileVideoPanel activeSection={activeSection} />
-        : <LeftVideoPanel activeSection={activeSection} scrollDirRef={scrollDirRef} />
-      }
+      {!isMobile && <LeftVideoPanel activeSection={activeSection} scrollDirRef={scrollDirRef} />}
       <ScrollProgressBar containerRef={containerRef} />
 
       <header aria-label="Site header" className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-6">
