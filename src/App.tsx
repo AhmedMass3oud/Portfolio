@@ -313,11 +313,11 @@ const HeroContent: React.FC<{ section: SectionData }> = ({ section }) => {
             aria-label="Send Email"
             style={{
               fontFamily: 'var(--font-sans, "IBM Plex Sans")',
-              fontWeight: 500, fontSize: '16px', lineHeight: '1em',
+              fontWeight: 500, fontSize: '18px', lineHeight: '1em',
               display: 'inline-flex', position: 'relative',
               placeItems: 'center', placeContent: 'center',
               whiteSpace: 'nowrap', backgroundColor: '#ffffff', color: '#FF4E00',
-              borderRadius: '50px', padding: '14px 24px', textDecoration: 'none',
+              borderRadius: '50px', padding: '18px 32px', textDecoration: 'none',
               border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer', userSelect: 'none',
               transition: 'transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease',
             }}
@@ -405,7 +405,7 @@ const ProjectsSection: React.FC<{ section: SectionData }> = ({ section }) => {
 
   return (
     <div className="relative z-[1] w-full flex flex-col overflow-hidden">
-      <div className="shrink-0 pt-20 md:pt-28 pb-6 px-6 md:px-12">
+      <div className="shrink-0 pt-20 md:pt-28 pb-6 px-6 md:px-20">
         <FadeIn>
           <h2 className="font-display font-black uppercase text-gray-900 text-fluid-section-title">
             Featured <span style={{ color: '#FF4E00' }}>Projects</span>
@@ -428,7 +428,7 @@ const ProjectsSection: React.FC<{ section: SectionData }> = ({ section }) => {
           className="h-full w-full overflow-x-auto overflow-y-hidden scrollbar-hide select-none"
           style={{ cursor: 'grab', touchAction: 'pan-y' }}
         >
-          <div className="flex gap-6 h-full w-max py-6 px-6">
+          <div className="flex gap-6 h-full w-max py-6 px-20">
             {projects.map((p, i) => (
               <div
                 key={i}
@@ -504,7 +504,7 @@ const AboutRow: React.FC<{ item: NonNullable<SectionData['items']>[0]; index: nu
     >
       <div className="flex-1 flex flex-col gap-2">
         {item.logo
-          ? <img src={item.logo} alt={item.company} className="h-12 w-auto object-contain object-left" draggable={false} />
+          ? <img src={item.logo} alt={item.company} className={`${item.logo.includes('tremoloo') ? 'h-7' : 'h-12'} w-auto object-contain object-left`} draggable={false} />
           : <p className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">{item.company}</p>
         }
         <p className="text-gray-500 font-sans text-sm tracking-[0.05em]">{item.role}</p>
@@ -565,8 +565,8 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
           isHero
             ? 'hidden md:flex w-full justify-center px-20'
             : section.id === 'contact'
-              ? 'w-full md:w-[52%] px-6 md:px-12'
-              : 'w-full md:w-1/2 px-6 md:px-12'
+              ? 'w-full md:w-[52%] px-6 md:px-20'
+              : 'w-full md:w-1/2 px-6 md:px-20'
         }`}
       >
         {isHero ? (
@@ -785,11 +785,146 @@ const OrangeFooter: React.FC = () => {
 };
 
 
+/* ─── Loading screen ────────────────────────────────────────────────── */
+const LoadingScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  const [progress, setProgress] = useState(0);
+  const [fading, setFading] = useState(false);
+  const doneRef = useRef(false);
+
+  const finish = React.useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setProgress(100);
+    setTimeout(() => {
+      setFading(true);
+      setTimeout(onDone, 600);
+    }, 300);
+  }, [onDone]);
+
+  useEffect(() => {
+    // Animate progress bar to ~85% while video loads
+    let p = 0;
+    const iv = setInterval(() => {
+      p += Math.random() * 9 + 3;
+      if (p >= 85) { p = 85; clearInterval(iv); }
+      setProgress(Math.round(p));
+    }, 120);
+
+    // Wait for main video to be ready
+    const vid = document.createElement('video');
+    vid.src = '/all-in-one.mp4';
+    vid.preload = 'auto';
+    vid.muted = true;
+    vid.addEventListener('canplaythrough', () => { clearInterval(iv); finish(); }, { once: true });
+    vid.addEventListener('error', () => { clearInterval(iv); finish(); }, { once: true });
+
+    // Fallback: max 6 s
+    const t = setTimeout(() => { clearInterval(iv); finish(); }, 6000);
+
+    return () => { clearInterval(iv); clearTimeout(t); };
+  }, [finish]);
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: '#ffffff',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        opacity: fading ? 0 : 1,
+        transition: 'opacity 0.6s ease',
+        pointerEvents: fading ? 'none' : 'all',
+      }}
+    >
+      <h1
+        className="font-display font-black text-gray-900 uppercase text-center"
+        style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', lineHeight: 0.88, letterSpacing: '-0.02em', marginBottom: '3rem' }}
+      >
+        Ahmed<br />Massoud
+      </h1>
+
+      {/* Progress bar */}
+      <div style={{ width: 180, height: 2, background: 'rgba(0,0,0,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%', background: '#FF4E00', borderRadius: 2,
+            width: `${progress}%`, transition: 'width 0.14s ease',
+          }}
+        />
+      </div>
+      <p
+        className="font-sans text-gray-400 text-xs mt-3"
+        style={{ letterSpacing: '0.12em', textTransform: 'uppercase' }}
+      >
+        {progress < 100 ? 'Loading' : 'Ready'}
+      </p>
+    </div>
+  );
+};
+
+/* ─── Mobile "better on desktop" bottom sheet ────────────────────────── */
+const MobileDesktopPrompt: React.FC = () => {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+  return (
+    <div className="md:hidden fixed inset-0 z-[900] flex items-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+        onClick={() => setVisible(false)}
+      />
+      {/* Sheet */}
+      <div
+        className="relative w-full px-6 pt-5 pb-10 flex flex-col items-center text-center"
+        style={{
+          background: 'rgba(255,255,255,0.88)',
+          backdropFilter: 'blur(48px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(180%)',
+          borderRadius: '28px 28px 0 0',
+          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 -4px 40px rgba(0,0,0,0.08)',
+        }}
+      >
+        {/* Handle */}
+        <div className="w-10 h-[3px] bg-gray-300 rounded-full mb-6" />
+
+        {/* Monitor icon */}
+        <div
+          className="w-14 h-14 flex items-center justify-center rounded-2xl mb-4"
+          style={{ background: 'rgba(255,78,0,0.08)' }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4E00" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="20" height="13" rx="2" />
+            <path d="M8 21h8M12 16v5" />
+          </svg>
+        </div>
+
+        <h2 className="font-display font-black text-gray-900 uppercase mb-2" style={{ fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
+          Better on Desktop
+        </h2>
+        <p className="font-sans text-gray-500 text-sm leading-relaxed mb-8 max-w-xs">
+          This portfolio is crafted for desktop. Open it on a laptop or desktop for the full experience.
+        </p>
+
+        <button
+          onClick={() => setVisible(false)}
+          className="w-full py-4 rounded-2xl font-sans font-medium text-sm text-gray-600"
+          style={{ background: 'rgba(0,0,0,0.06)' }}
+        >
+          Continue Anyway
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /* ─── App ────────────────────────────────────────────────────────────── */
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState('hero');
   const scrollDirRef = useRef<'down' | 'up'>('down');
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -819,6 +954,8 @@ export default function App() {
 
   return (
     <div className="grain antialiased w-screen h-screen overflow-hidden bg-white">
+      {!appReady && <LoadingScreen onDone={() => setAppReady(true)} />}
+      <MobileDesktopPrompt />
       <a href="#hero" className="sr-only focus:not-sr-only fixed top-4 left-4 z-[200] bg-black text-white px-4 py-2 rounded-full font-bold">
         Skip to content
       </a>
