@@ -632,7 +632,7 @@ const Section = React.memo<{ section: SectionData }>(({ section }) => {
                     {[
                       { label: 'LinkedIn', href: 'https://www.linkedin.com/in/mass3oudui/' },
                       { label: 'Dribbble', href: 'https://dribbble.com/ahmedmassoud' },
-                      { label: 'WhatsApp', href: `https://wa.me/${section.whatsapp}` },
+                      { label: 'WhatsApp', href: 'https://wa.me/201151029852' },
                     ].map((s) => (
                       <li key={s.label}>
                         <a
