@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import { SECTIONS } from './constants';
 
 interface ProjectItem {
@@ -1089,6 +1090,7 @@ export default function App() {
           <OrangeFooter />
         </section>
       </main>
+      <Analytics />
     </div>
   );
 }
